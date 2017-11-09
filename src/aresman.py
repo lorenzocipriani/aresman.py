@@ -27,7 +27,8 @@ def cpuinfo():
             if myLine[0].strip() in labels:
                 if myLine[0].strip() == "processor": 
                     processor = myLine[1].strip()
-                    cpus.append(cpu)
+                    cpus.append(None)
+                    cpu = {}
                 else: cpu[myLine[0].strip()] = myLine[1].strip()
                 cpus[int(processor)] = cpu
     return cpus
