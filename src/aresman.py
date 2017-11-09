@@ -40,7 +40,7 @@ def main():
         print "Start Time : %s" % time.ctime()
         
         for cpu in cpuinfo():
-            print("cpu: %s\tcores: %s\tmodel: %s", cpu["core id"], cpu["cpu cores"], cpu["model name"])
+            print("cpu: {}\tcores: {}\tmodel: {}".format(cpu["core id"], cpu["cpu cores"], cpu["model name"]))
         
         while True:
             
