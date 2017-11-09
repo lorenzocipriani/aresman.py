@@ -38,6 +38,7 @@ def cpuinfo():
 def toSecs(data):
     '''
     '''
+    print(data)
     return float( int(data) / int(USER_HZ) )
 
 def cpustat(data):
