@@ -109,14 +109,15 @@ def main():
             print("uptime: {} sec\tprocs: {} ({} running, {} blocked)".format(stats["uptime"], stats["processes"], stats["procs_running"], stats["procs_blocked"]))
             
             mem = meminfo()
-            print("Memory: Total {}  Free {} ({} avail) - Swap: Total {}  Free {}".format(mem["MemTotal"], mem["MemFree"], mem["MemAvailable"], mem["SwapTotal"], mem["SwapFree"]))
+            print("Memory: Total {}  Free {}  Available {}".format(mem["MemTotal"], mem["MemFree"], mem["MemAvailable"]))
+            print("Swap: Total {}  Free {}".format(mem["SwapTotal"], mem["SwapFree"]))
 
             for cpu in stats["cpu"]:
                 print("{}\tuser: {}  nice: {}  system: {}  idle: {}  wait: {}".format(cpu["id"], toSecs(cpu["user"]), toSecs(cpu["nice"]), toSecs(cpu["system"]), toSecs(cpu["idle"]), toSecs(cpu["iowait"])))
             
             time.sleep(poll_interval)
 
-            sys.stdout.write((2 + len(stats["cpu"])) * (CUR_UP_1LINE + ERASE_1LINE))
+            sys.stdout.write((3 + len(stats["cpu"])) * (CUR_UP_1LINE + ERASE_1LINE))
             sys.stdout.flush()
 
         
