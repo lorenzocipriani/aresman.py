@@ -11,6 +11,7 @@ aresman.py
 
 import os
 import time
+import sys
 
 USER_HZ = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
 poll_interval = 5
@@ -96,6 +97,10 @@ def main():
                 print("id: {}\tuser: {}  nice: {}  system: {}  idle: {}  wait: {}".format(cpu["id"], toSecs(cpu["user"]), toSecs(cpu["nice"]), toSecs(cpu["system"]), toSecs(cpu["idle"]), toSecs(cpu["iowait"])))
             
             time.sleep(poll_interval)
+
+            sys.stdout.write("\x1b[3F")
+            sys.stdout.flush()
+
         
     except KeyboardInterrupt:
         print("\nAResMan interrupted")
