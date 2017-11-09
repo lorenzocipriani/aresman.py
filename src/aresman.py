@@ -17,12 +17,19 @@ def cpuinfo():
     '''
     '''
     labels = ["processor", "core id", "cpu cores", "model name"]
+    cpus = []
+    cpu = {}
+    processor = None
     
     with open('/proc/cpuinfo') as f:
         for line in f:
             myLine = ' '.join(line.split()).split(':')
             if myLine[0].strip() in labels:
-                print(myLine)
+                if myLine[0].strip() == "processor": processor = myLine[1].strip()
+                else: cpu[myLine[0].strip()] = myLine[1].strip()
+                cpus[processor] = cpu
+
+        print(cpus)
 
 
 def main():
