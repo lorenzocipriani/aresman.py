@@ -16,9 +16,11 @@ poll_interval = 10
 def cpuinfo():
     '''
     '''
+    labels = ["processor", "core id", "cpu cores", "model name"]
+    
     with open('/proc/cpuinfo') as f:
         for line in f:
-            myLine = ' '.join(line.split())
+            myLine = ' '.join(line.split()).split(' : ')
             print(myLine)
 
 
