@@ -61,23 +61,21 @@ def cpustat(data):
     cpu["steal"] = data[8].strip()
     cpu["guest"] = data[9].strip()
     cpu["guest_nice"] = data[10].strip()
-    print(cpu)
     return cpu
 
 
 def stat():
     '''
     '''
-    labels = ["cpu", "btime", "uptime", "processes", "procs_running", "procs_blocked"]
+    labels = ["btime", "uptime", "processes", "procs_running", "procs_blocked"]
     cpus = []
     stat = {}
     
     with open('/proc/stat') as f:
         for line in f:
             myLine = line.split(' ')
-            if myLine[0].strip() in labels:
-                if "cpu" in myLine[0].strip(): cpus.append(cpustat(myLine))
-                else: stat[myLine[0].strip()] = myLine[1].strip()
+            if "cpu" in myLine[0].strip(): cpus.append(cpustat(myLine))
+            elif myLine[0].strip() in labels: stat[myLine[0].strip()] = myLine[1].strip()
     stat["cpu"] = cpus
     stat["uptime"] = time.time() - float(stat["btime"])
     return stat
@@ -102,8 +100,8 @@ def main():
             
             time.sleep(poll_interval)
 
-            #sys.stdout.write(2 * (CUR_UP_1LINE + ERASE_1LINE))
-            #sys.stdout.flush()
+            sys.stdout.write((1 + len(stats["cpu"])) * (CUR_UP_1LINE + ERASE_1LINE))
+            sys.stdout.flush()
 
         
     except KeyboardInterrupt:
