@@ -71,6 +71,7 @@ def stat():
             if myLine[0].strip() in labels:
                 if "cpu" in myLine[0].strip(): cpus.append(cpustat(myLine))
                 else: stat[myLine[0].strip()] = myLine[1].strip()
+    stat["cpu"] = cpus
     return stat
 
 
