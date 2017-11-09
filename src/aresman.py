@@ -93,7 +93,7 @@ def main():
             print("uptime: {} sec\tprocs: {} ({} running, {} blocked)".format(stats["uptime"], stats["processes"], stats["procs_running"], stats["procs_blocked"]))
             
             for cpu in stats["cpu"]:
-                print("id: {}\tuser: {}\tnice: {}\tsystem: {}\tidle: {}\twait: {}".format(cpu["id"], toSecs(cpu["user"]), toSecs(cpu["nice"]), toSecs(cpu["system"]), toSecs(cpu["idle"]), toSecs(cpu["iowait"])))
+                print("id: {}\tuser: {}  nice: {}  system: {}  idle: {}  wait: {}".format(cpu["id"], toSecs(cpu["user"]), toSecs(cpu["nice"]), toSecs(cpu["system"]), toSecs(cpu["idle"]), toSecs(cpu["iowait"])))
             
             time.sleep(poll_interval)
         
