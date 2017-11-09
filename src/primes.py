@@ -11,6 +11,7 @@ primes.py
 primesToFind = 1000000
 
 num = 0
+found = 0
 
 def isPrime(num):
     if num > 1:
@@ -27,5 +28,6 @@ if __name__ == '__main__':
     while primesToFind > 0:
         num += 1
         if isPrime(num):
-            print(num)
+            found += 1
+            print(found, num)
             primesToFind -= 1
