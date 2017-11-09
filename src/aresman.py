@@ -46,6 +46,7 @@ def toSecs(data):
     if data is None or data == "": data = 0
     return float( int(data) / int(USER_HZ) )
 
+
 def cpustat(data):
     '''
     '''
@@ -81,6 +82,18 @@ def stat():
     return stat
 
 
+def meminfo():
+    '''
+    '''
+    labels = ["MemTotal", "MemFree", "MemAvailable", "SwapTotal", "SwapFree"]
+    mem = {}
+    
+    with open('/proc/meminfo') as f:
+        for line in f:
+            myLine = line.split(':')
+            if myLine[0].strip() in labels: mem[myLine[0].strip()] = myLine[1].strip()
+    return mem
+
 def main():
     '''
     '''
@@ -95,12 +108,15 @@ def main():
             stats = stat()
             print("uptime: {} sec\tprocs: {} ({} running, {} blocked)".format(stats["uptime"], stats["processes"], stats["procs_running"], stats["procs_blocked"]))
             
+            mem = meminfo()
+            print("Memory: Total {}  Free {} ({} avail) - Swap: Total {}  Free {}".format(mem["MemTotal"], mem["MemFree"], mem["MemAvailable"], mem["SwapTotal"], mem["SwapFree"]))
+
             for cpu in stats["cpu"]:
-                print("id: {}\tuser: {}  nice: {}  system: {}  idle: {}  wait: {}".format(cpu["id"], toSecs(cpu["user"]), toSecs(cpu["nice"]), toSecs(cpu["system"]), toSecs(cpu["idle"]), toSecs(cpu["iowait"])))
+                print("{}\tuser: {}  nice: {}  system: {}  idle: {}  wait: {}".format(cpu["id"], toSecs(cpu["user"]), toSecs(cpu["nice"]), toSecs(cpu["system"]), toSecs(cpu["idle"]), toSecs(cpu["iowait"])))
             
             time.sleep(poll_interval)
 
-            sys.stdout.write((1 + len(stats["cpu"])) * (CUR_UP_1LINE + ERASE_1LINE))
+            sys.stdout.write((2 + len(stats["cpu"])) * (CUR_UP_1LINE + ERASE_1LINE))
             sys.stdout.flush()
 
         
