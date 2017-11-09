@@ -38,7 +38,7 @@ def cpuinfo():
 def toSecs(data):
     '''
     '''
-    print(data)
+    if data is None or data == "": data = 0
     return float( int(data) / int(USER_HZ) )
 
 def cpustat(data):
