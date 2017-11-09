@@ -25,9 +25,12 @@ if __name__ == '__main__':
     
     print("Search for the first {} prime numbers:".format(primesToFind))
     
+    primesList = []
+    
     while primesToFind > 0:
         num += 1
         if isPrime(num):
+            primesList.append(num)
             found += 1
             print(found, num)
             primesToFind -= 1
