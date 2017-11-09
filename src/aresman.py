@@ -20,8 +20,9 @@ def cpuinfo():
     
     with open('/proc/cpuinfo') as f:
         for line in f:
-            myLine = ' '.join(line.split()).split(' : ')
-            print(myLine)
+            myLine = ' '.join(line.split()).split(':')
+            if myLine[0].strip() in labels:
+                print(myLine)
 
 
 def main():
