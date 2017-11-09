@@ -13,6 +13,9 @@ import os
 import time
 import sys
 
+CUR_UP_1LINE = '\x1b[1A'
+ERASE_1LINE = '\x1b[2K'
+
 USER_HZ = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
 poll_interval = 5
 
@@ -98,7 +101,7 @@ def main():
             
             time.sleep(poll_interval)
 
-            sys.stdout.write("\x1b[3F")
+            sys.stdout.write(2 * (CUR_UP_1LINE + ERASE_1LINE))
             sys.stdout.flush()
 
         
