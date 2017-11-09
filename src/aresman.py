@@ -61,6 +61,7 @@ def cpustat(data):
     cpu["steal"] = data[8].strip()
     cpu["guest"] = data[9].strip()
     cpu["guest_nice"] = data[10].strip()
+    print(cpu)
     return cpu
 
 
@@ -101,8 +102,8 @@ def main():
             
             time.sleep(poll_interval)
 
-            sys.stdout.write(2 * (CUR_UP_1LINE + ERASE_1LINE))
-            sys.stdout.flush()
+            #sys.stdout.write(2 * (CUR_UP_1LINE + ERASE_1LINE))
+            #sys.stdout.flush()
 
         
     except KeyboardInterrupt:
