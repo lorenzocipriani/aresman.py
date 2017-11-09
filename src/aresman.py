@@ -18,8 +18,8 @@ def cpuinfo():
     '''
     with open('/proc/cpuinfo') as f:
         for line in f:
-            myLine = ' '.join(line.split())
-            print(myLine)
+            print(line.rstrip('\n'))
+
 
 def main():
     '''
