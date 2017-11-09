@@ -74,7 +74,7 @@ def stat():
                 if "cpu" in myLine[0].strip(): cpus.append(cpustat(myLine))
                 else: stat[myLine[0].strip()] = myLine[1].strip()
     stat["cpu"] = cpus
-    stat["uptime"] = time.time() - stat["btime"]
+    stat["uptime"] = time.time() - float(stat["btime"])
     return stat
 
 
