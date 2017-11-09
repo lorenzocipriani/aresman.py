@@ -30,8 +30,7 @@ def cpuinfo():
                     cpus.append(cpu)
                 else: cpu[myLine[0].strip()] = myLine[1].strip()
                 cpus[int(processor)] = cpu
-
-        print(cpus)
+    return cpus
 
 
 def main():
@@ -39,9 +38,12 @@ def main():
     '''
     try:
         print "Start Time : %s" % time.ctime()
+        
+        for cpu in cpuinfo():
+            print("cpu: %s\tcores: %s\tmodel: %s", cpu["core id"], cpu["cpu cores"], cpu["model name"])
+        
         while True:
             
-            cpuinfo()
             
             time.sleep(poll_interval)
         
