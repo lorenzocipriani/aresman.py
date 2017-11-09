@@ -34,6 +34,7 @@ def cpuinfo():
                 else: cpu[myLine[0].strip()] = myLine[1].strip()
                 cpus[int(processor)] = cpu
     return cpus
+    
 
 def toSecs(data):
     '''
@@ -62,7 +63,7 @@ def cpustat(data):
 def stat():
     '''
     '''
-    labels = ["cpu", "btime", "processes", "procs_running", "procs_blocked"]
+    labels = ["cpu", "btime", "uptime", "processes", "procs_running", "procs_blocked"]
     cpus = []
     stat = {}
     
@@ -73,6 +74,7 @@ def stat():
                 if "cpu" in myLine[0].strip(): cpus.append(cpustat(myLine))
                 else: stat[myLine[0].strip()] = myLine[1].strip()
     stat["cpu"] = cpus
+    stat["uptime"] = time.time() - stat["btime"]
     return stat
 
 
@@ -88,7 +90,7 @@ def main():
         while True:
             
             stats = stat()
-            print("uptime: {} sec\tprocs: {} ({} running, {} blocked)".format(toSecs(stats["btime"]), stats["processes"], stats["procs_running"], stats["procs_blocked"]))
+            print("uptime: {} sec\tprocs: {} ({} running, {} blocked)".format(stats["uptime"], stats["processes"], stats["procs_running"], stats["procs_blocked"]))
             
             for cpu in stats["cpu"]:
                 print("id: {}\tuser: {}\tnice: {}\tsystem: {}\tidle: {}\twait: {}".format(cpu["id"], toSecs(cpu["user"]), toSecs(cpu["nice"]), toSecs(cpu["system"]), toSecs(cpu["idle"]), toSecs(cpu["iowait"])))
