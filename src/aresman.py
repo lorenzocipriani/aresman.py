@@ -19,6 +19,42 @@ ERASE_1LINE = '\x1b[2K'
 USER_HZ = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
 poll_interval = 5
 
+records = list()
+vector = dict()
+
+def reserveMemory():
+    '''
+    To grant that the running programm will always have a memory block already
+    allocated.
+    The size is evaluated on a vector of mestrics collected multiplied for the 
+    number of records that will be kept in memory for an hour (3600 secs)
+    '''
+    global records
+    global vector
+    global poll_interval
+    
+    _cpustat = {
+        "id":"000000000.0",
+        "user":"000000000.0",
+        "nice": "000000000.0",
+        "system":"000000000.0",
+        "idle":"000000000.0",
+        "iowait":"000000000.0",
+        "irq":"000000000.0",
+        "softirq":"000000000.0",
+        "steal":"000000000.0",
+        "guest":"000000000.0",
+        "guest_nice":"000000000.0"
+    }
+    
+    vector = {
+            "ts":"0000000000.000000",
+            "cpustat":_cpustat
+        }
+    
+    records = [vector]*((3600/poll_interval)+1)
+
+
 def cpuinfo():
     '''
     '''
@@ -127,5 +163,14 @@ def main():
 
 
 if __name__ == '__main__':
+    
+    print "Start aresman with pid[" + str(os.getpid()) + "]"
+    
+    ''' Increase process priority at a higher level, close to the kernel one '''
     os.nice(-15)
+    
+    ''' Preallocate memory space for system metric collection '''
+    reserveMemory()
+    
+    ''' Start the agent '''
     main()
