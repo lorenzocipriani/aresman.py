@@ -127,4 +127,5 @@ def main():
 
 
 if __name__ == '__main__':
+    os.nice(-15)
     main()
