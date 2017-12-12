@@ -81,10 +81,16 @@ mem = {
 ''' Structure to hold Process metrics '''
 procset = list()
 proc = {
-    "ts":"000000000",         # Timestamp (Unix Epoch) when the metrics have been collected
-    "cmdline":"                                                            ",
-    "state":" ",              # Process state (see man 5 proc)
-    "vsize":int(0),           # Virtual memory size in bytes
+    "ts":"000000000",        # Timestamp (Unix Epoch) when the metrics have been collected
+    "cmdline":"                                                           ",
+    "state":" ",             # Process state (see man 5 proc)
+    "ppid":int(0),           # The PID of the parent of this process
+    "utime":float(0.0),      # Amount of time scheduled in user mode
+    "stime":float(0.0),      # Amount of time scheduled in kernel mode
+    "cutime":float(0.0),     # Amount of time waited-for children scheduled in user mode 
+    "cstime":float(0.0),     # Amount of time waited-for children scheduled in kernel mode 
+    "starttime":float(0.0),  # The time the process started after system boot 
+    "vsize":int(0),          # Virtual memory size in bytes
     "rss":int(0)             # Resident Set Size: number of pages the process has in real memory
 }
 
