@@ -10,9 +10,12 @@ command (sudo or root credentials are mandatory):
 
 To improve the performances and reduce the memory footprint it can be compiled
 into bytecode then executed with one of these 2 commands set:
+
 ```python -m py_compile aresman.py
 sudo python aresman.pyc```
+
 or this one that has a better optimization:
+
 ```python -OO -m py_compile aresman.py
 sudo python aresman.pyo```
 
