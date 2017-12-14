@@ -12,6 +12,7 @@ aresman.py
 import json
 import os
 import time
+import signal
 import sys
 
 CUR_UP_1LINE = '\x1b[1A'
@@ -21,13 +22,20 @@ USER_HZ = os.sysconf(os.sysconf_names['SC_CLK_TCK'])
 poll_interval = 5
 POLL_HZ = USER_HZ * poll_interval
 
+KILL_AFTER = int(2)
+pid_kill_counter = {"0": int(0)}
+
+CPU_LIMIT = float(85.0)
+cpu_usage = float(0.0)
+
 ''' Variables to store the current timestamp and the previous one recorded '''
 ts = 000000000
 prev_ts = ts
 ts_sets = 3 #int((3600/poll_interval)+1)  # number of records stored by timestamp
 
 cpuIds = list()         # cpu cores available on the system
-cpuset_queue = ts_sets  # leght of the queue that stores timeseries data for each cpu
+#cpuset_queue = ts_sets  # leght of the queue that stores timeseries data for each cpu
+
 ''' Structure to hold CPU metrics '''
 cpuset = list()
 cpu = {
@@ -37,8 +45,8 @@ cpu = {
     "system":float(0.0),        # Time spent in system mode
     "idle":float(0.0),          # Time spent in the idle task (USER_HZ times /proc/uptime second entry)
     "iowait":float(0.0),        # Time waiting for I/O to complete (use carefully)
-    "irq":float(0.0),           # Time servicing interrupts
-    "softirq":float(0.0),       # Time servicing softirqs
+    "rss":float(0.0),           # Time servicing interrupts
+    "softrss":float(0.0),       # Time servicing softrsss
     "steal":float(0.0),         # Time spent in other operating systems (when running in a VM)
     "guest":float(0.0),         # Time spent running a virtual CPU for guest operating systems
     "guest_nice":float(0.0),    # Time spent running a niced guest (virtual CPU for guest operating systems)
@@ -52,10 +60,10 @@ cpu = {
     "p_idle":float(0.0),        # Percentage of time spent for idle
     "t_iowait":float(0.0),      # Trend value compared to previos value of iowait
     "p_iowait":float(0.0),      # Percentage of time spent for iowait
-    "t_irq":float(0.0),         # Trend value compared to previos value of irq
-    "p_irq":float(0.0),         # Percentage of time spent for irq
-    "t_softirq":float(0.0),     # Trend value compared to previos value of softirq
-    "p_softirq":float(0.0),     # Percentage of time spent for softirq
+    "t_rss":float(0.0),         # Trend value compared to previos value of rss
+    "p_rss":float(0.0),         # Percentage of time spent for rss
+    "t_softrss":float(0.0),     # Trend value compared to previos value of softrss
+    "p_softrss":float(0.0),     # Percentage of time spent for softrss
     "t_steal":float(0.0),       # Trend value compared to previos value of steal
     "p_steal":float(0.0),       # Percentage of time spent for steal
     "t_guest":float(0.0),       # Trend value compared to previos value of guest
@@ -78,20 +86,28 @@ mem = {
     "p_SwapFree":int(0)       # Percentage of SwapFree
 }
 
+procIds = list()              # processes running on the system
 ''' Structure to hold Process metrics '''
 procset = list()
 proc = {
     "ts":"000000000",        # Timestamp (Unix Epoch) when the metrics have been collected
     "cmdline":"                                                           ",
-    "state":" ",             # Process state (see man 5 proc)
-    "ppid":int(0),           # The PID of the parent of this process
-    "utime":float(0.0),      # Amount of time scheduled in user mode
-    "stime":float(0.0),      # Amount of time scheduled in kernel mode
-    "cutime":float(0.0),     # Amount of time waited-for children scheduled in user mode 
-    "cstime":float(0.0),     # Amount of time waited-for children scheduled in kernel mode 
-    "starttime":float(0.0),  # The time the process started after system boot 
-    "vsize":int(0),          # Virtual memory size in bytes
-    "rss":int(0)             # Resident Set Size: number of pages the process has in real memory
+    "pid":int(0),              #  1 The process ID
+    "state":" ",               #  3 Process state (see man 5 proc)
+    "ppid":int(0),             #  4 The PID of the parent of this process
+    "utime":float(0.0),        # 14 Amount of time scheduled in user mode
+    "stime":float(0.0),        # 15 Amount of time scheduled in kernel mode
+    "cutime":float(0.0),       # 16 Amount of time waited-for children scheduled in user mode 
+    "cstime":float(0.0),       # 17 Amount of time waited-for children scheduled in kernel mode 
+    "starttime":float(0.0),    # 22 The time the process started after system boot 
+    "vsize":int(0),            # 23 Virtual memory size in bytes
+    "rss":int(0),              # 24 Resident Set Size: number of pages the process has in real memory
+    "p_utime":float(0.0),      # Percentage of time scheduled in user mode                      
+    "p_stime":float(0.0),      # Percentage of time scheduled in kernel mode                    
+    "p_cutime":float(0.0),     # Percentage of time waited-for children scheduled in user mode  
+    "p_cstime":float(0.0),     # Percentage of time waited-for children scheduled in kernel mode
+    "p_vsize":float(0.0),      # Percentage of virtual memory
+    "p_rss":float(0.0)         # Percentage of the number of pages in real memory
 }
 
 
@@ -112,6 +128,7 @@ def reserveMemory():
     global ts_sets
     global cpuIds, cpuset, cpu
     global memset, mem
+    global procset, proc
 
     ''' Read all the cores in the system and prepare the cpuIds list '''    
     cpuIds.append("cpu")
@@ -122,10 +139,70 @@ def reserveMemory():
     
     ''' Prepare a structure to host memory data '''
     memset.append([mem]*ts_sets)
+
+    ''' For each process prepare a structure to host data '''
+    for pid in range(1000,10): procset.append({pid[proc]*ts_sets})
+    
+    
+    ''' Prepare a structure to host memory data '''
+    
     
     #print("reserveMemory()", cpuIds)
     #print("reserveMemory()", cpuset)
 
+
+def stopProcess(pid):
+    '''
+    Send the SIGSTOP signal to the process indicated by pid
+    '''
+    os.kill(int(pid), signal.SIGSTOP)
+    # TODO: REMOVE AFTER DEMO
+    print("Process [{}] stopped".format(pid))
+    
+
+def stopProcessGroup(pgid):
+    '''
+    Send the SIGSTOP signal to the process indicated by pid
+    '''
+    os.killpg(int(pgid), signal.SIGSTOP)
+    # TODO: REMOVE AFTER DEMO
+    print("Process group [{}] stopped".format(pgid))
+    
+
+def killProcess(pid):
+    '''
+    Send the SIGSTOP signal to the process indicated by pid
+    '''
+    os.kill(int(pid), signal.SIGKILL)
+    # TODO: REMOVE AFTER DEMO
+    print("Process [{}] killed".format(pid))
+    
+
+def killProcessGroup(pgid):
+    '''
+    Send the SIGSTOP signal to the process indicated by pid
+    '''
+    os.killpg(int(pgid), signal.SIGKILL)
+    # TODO: REMOVE AFTER DEMO
+    print("Process group [{}] killed".format(pgid))
+    
+
+def theshold_checker(pid):
+    '''
+    Manages processes that are overtaking the threshold limits
+    '''
+    global KILL_AFTER, pid_kill_counter
+
+    # print("pid", pid)
+    # print("pid_kill_counter", pid_kill_counter)
+
+    if str(pid) in pid_kill_counter:
+        pid_kill_counter[str(pid)] += 1
+    else: 
+        pid_kill_counter.update({str(pid): 1})
+        
+    if int(pid_kill_counter[str(pid)]) >= KILL_AFTER: stopProcess(pid)
+    
 
 def cpuinfo():
     '''
@@ -215,29 +292,29 @@ def cpuTrend(cpuStat, prev, tf):
         t_iowait = prev["iowait"]
         p_iowait = prev["p_iowait"]
     try:
-        if float(prev["irq"]) == 0: 
-            t_irq = 1.0
-            p_irq = 0.0
+        if float(prev["rss"]) == 0: 
+            t_rss = 1.0
+            p_rss = 0.0
         else: 
-            t_irq = 1/(float(cpuStat["irq"])/float(prev["irq"]))
-            p_irq = 0.0
-            d_irq = (float(cpuStat["irq"])-float(prev["irq"]))
-            if d_irq != 0: p_irq = 1/(tf/d_irq)
+            t_rss = 1/(float(cpuStat["rss"])/float(prev["rss"]))
+            p_rss = 0.0
+            d_rss = (float(cpuStat["rss"])-float(prev["rss"]))
+            if d_rss != 0: p_rss = 1/(tf/d_rss)
     except ValueError:
-        t_irq = prev["irq"]
-        p_irq = prev["p_irq"]
+        t_rss = prev["rss"]
+        p_rss = prev["p_rss"]
     try:
-        if float(prev["softirq"]) == 0: 
-            t_softirq = 1.0
-            p_softirq = 0.0
+        if float(prev["softrss"]) == 0: 
+            t_softrss = 1.0
+            p_softrss = 0.0
         else: 
-            t_softirq = 1/(float(cpuStat["softirq"])/float(prev["softirq"]))
-            p_softirq = 0.0
-            d_softirq = (float(cpuStat["softirq"])-float(prev["softirq"]))
-            if d_softirq != 0: p_softirq = 1/(tf/d_softirq)
+            t_softrss = 1/(float(cpuStat["softrss"])/float(prev["softrss"]))
+            p_softrss = 0.0
+            d_softrss = (float(cpuStat["softrss"])-float(prev["softrss"]))
+            if d_softrss != 0: p_softrss = 1/(tf/d_softrss)
     except ValueError:
-        t_softirq = prev["softirq"]
-        p_softirq = prev["p_softirq"]
+        t_softrss = prev["softrss"]
+        p_softrss = prev["p_softrss"]
     try:
         if float(prev["steal"]) == 0: 
             t_steal = 1.0
@@ -282,8 +359,8 @@ def cpuTrend(cpuStat, prev, tf):
         "system":cpuStat["system"],
         "idle":cpuStat["idle"],
         "iowait":cpuStat["iowait"],
-        "irq":cpuStat["irq"],
-        "softirq":cpuStat["softirq"],
+        "rss":cpuStat["rss"],
+        "softrss":cpuStat["softrss"],
         "steal":cpuStat["steal"],
         "guest":cpuStat["guest"],
         "guest_nice":cpuStat["guest_nice"],
@@ -297,10 +374,10 @@ def cpuTrend(cpuStat, prev, tf):
         "p_idle":p_idle,
         "t_iowait":t_iowait,
         "p_iowait":p_iowait,
-        "t_irq":t_irq,
-        "p_irq":p_irq,
-        "t_softirq":t_softirq,
-        "p_softirq":p_softirq,
+        "t_rss":t_rss,
+        "p_rss":p_rss,
+        "t_softrss":t_softrss,
+        "p_softrss":p_softrss,
         "t_steal":t_steal,
         "p_steal":p_steal,
         "t_guest":t_guest,
@@ -360,10 +437,10 @@ def cpustat(data):
     except ValueError: idle = float(0.0)
     try: iowait = float(data[5].strip())
     except ValueError: iowait = float(0.0)
-    try: irq = float(data[6].strip())
-    except ValueError: irq = float(0.0)
-    try: softirq = float(data[7].strip())
-    except ValueError: softirq = float(0.0)
+    try: rss = float(data[6].strip())
+    except ValueError: rss = float(0.0)
+    try: softrss = float(data[7].strip())
+    except ValueError: softrss = float(0.0)
     try: steal = float(data[8].strip())
     except ValueError: steal = float(0.0)
     try: guest = float(data[9].strip())
@@ -378,8 +455,8 @@ def cpustat(data):
         "system":system,
         "idle":idle,
         "iowait":iowait,
-        "irq":irq,
-        "softirq":softirq,
+        "rss":rss,
+        "softrss":softrss,
         "steal":steal,
         "guest":guest,
         "guest_nice":guest_nice,
@@ -393,10 +470,10 @@ def cpustat(data):
         "p_idle":float(0.0),
         "t_iowait":float(0.0),
         "p_iowait":float(0.0),
-        "t_irq":float(0.0),
-        "p_irq":float(0.0),
-        "t_softirq":float(0.0),
-        "p_softirq":float(0.0),
+        "t_rss":float(0.0),
+        "p_rss":float(0.0),
+        "t_softrss":float(0.0),
+        "p_softrss":float(0.0),
         "t_steal":float(0.0),
         "p_steal":float(0.0),
         "t_guest":float(0.0),
@@ -410,7 +487,7 @@ def cpustat(data):
 
 def stat():
     '''
-        Collects the metrics from /proc/stat
+    Collect the metrics from /proc/stat
     '''
     global ts, prev_ts
     global poll_interval
@@ -437,6 +514,7 @@ def stat():
 
 def meminfo():
     '''
+    Collect the metrics from /proc/meminfo
     '''
     labels = ["MemTotal", "MemFree", "MemAvailable", "SwapTotal", "SwapFree"]
     mem = {}
@@ -447,13 +525,231 @@ def meminfo():
             if myLine[0].strip() in labels: mem[myLine[0].strip()] = myLine[1].strip()
     return mem
 
+
+def procTrend(procStat, prev, tf):
+    '''
+    Calculate the difference between the current cpu stat and the previous one
+    '''
+
+    ''' If previous values are 0 then init to 1.0 the trend value and 0.0 the percentage one '''
+    try:
+        if float(prev["utime"]) == 0:
+            p_utime = 0.0
+        else: 
+            p_utime = 0.0
+            d_utime = (float(procStat["utime"])-float(prev["utime"]))
+            if d_utime != 0: p_utime = 1/(tf/d_utime)
+    except ValueError:
+        p_utime = prev["p_utime"]
+    try:
+        if float(prev["stime"]) == 0: 
+            p_stime = 0.0
+        else: 
+            p_stime = 0.0
+            d_stime = (float(procStat["stime"])-float(prev["stime"]))
+            if d_stime != 0: p_stime = 1/(tf/d_stime)
+    except ValueError:
+        p_stime = prev["p_stime"]
+    try:
+        if float(prev["cutime"]) == 0: 
+            p_cutime = 0.0
+        else: 
+            p_cutime = 0.0
+            d_cutime = (float(procStat["cutime"])-float(prev["cutime"]))
+            if d_cutime != 0: p_cutime = 1/(tf/d_cutime)
+    except ValueError:
+        p_cutime = prev["p_cutime"]
+    try:
+        if float(prev["cstime"]) == 0: 
+            p_cstime = 0.0
+        else: 
+            p_cstime = 0.0
+            d_cstime = (float(procStat["cstime"])-float(prev["cstime"]))
+            if d_cstime != 0: p_cstime = 1/(tf/d_cstime)
+    except ValueError:
+        p_cstime = prev["p_cstime"]
+    try:
+        if float(prev["vsize"]) == 0: 
+            p_vsize = 0.0
+        else: 
+            p_vsize = 0.0
+            d_vsize = (float(procStat["vsize"])-float(prev["vsize"]))
+            if d_vsize != 0: p_vsize = 1/(tf/d_vsize)
+    except ValueError:
+        p_vsize = prev["p_vsize"]
+    try:
+        if float(prev["rss"]) == 0: 
+            p_rss = 0.0
+        else: 
+            p_rss = 0.0
+            d_rss = (float(procStat["rss"])-float(prev["rss"]))
+            if d_rss != 0: p_rss = 1/(tf/d_rss)
+    except ValueError:
+        p_rss = prev["p_rss"]
+    
+    procStat = {
+        "ts":procStat["ts"],
+        "cmdline":procStat["cmdline"],
+        "pid":procStat["pid"],
+        "state":procStat["state"],
+        "ppid":procStat["ppid"],
+        "utime":procStat["utime"],
+        "stime":procStat["stime"],
+        "cutime":procStat["cutime"],
+        "cstime":procStat["cstime"],
+        "starttime":procStat["starttime"],
+        "vsize":procStat["vsize"],
+        "rss":procStat["rss"],
+        "p_utime":p_utime,
+        "p_stime":p_stime,
+        "p_cutime":p_cutime,
+        "p_cstime":p_cstime,
+        "p_vsize":p_vsize,
+        "p_rss":p_rss
+    }
+    #print("procTrend()", procStat)
+    return procStat
+    
+
+def procsetAdd(pid, procStat):
+    '''
+    Append a proc stat vector to the procset list and calculate the trend compared
+    to the previous timestamp
+    '''
+    global procset, ts_sets
+    global POLL_HZ
+    
+    tf = POLL_HZ
+
+    idx = -1
+    for procDict in procset:
+        idx += 1
+        if procDict.has_key(pid):
+            procDict[pid].insert(0, procTrend(procStat, procDict[pid][0], tf))
+            #print("procDict", pid, procDict[pid])
+            ''' If the queue is full, remove the oldest record '''
+            if len(procDict[pid]) > ts_sets: del procDict[pid][-1]
+            procset[idx] = {pid:procDict[pid]}
+            #print("procset", idx, procset[idx])
+            break
+    
+    #print("procsetAdd", procset[idx])
+    #print("\procset\n", procset)
+        
+    
+def procstat(cmdline, data):
+    '''
+    Parse process stats from the /proc/[pid]/stat output and assign values to global cpu
+    
+    Values are converted to float(0.0) in case the original value is not a 
+    convertible number
+    '''
+    global ts, proc
+    
+    try: pid = int(data[0].strip())
+    except ValueError: pid = int(0)
+    
+    state = str(data[2].strip())
+    
+    try: ppid = int(data[3].strip())
+    except ValueError: ppid = int(0)
+    try: utime = float(data[13].strip())
+    except ValueError: utime = float(0.0)
+    try: stime = float(data[14].strip())
+    except ValueError: stime = float(0.0)
+    try: cutime = float(data[15].strip())
+    except ValueError: cutime = float(0.0)
+    try: cstime = float(data[16].strip())
+    except ValueError: cstime = float(0.0)
+    try: starttime = float(data[21].strip())
+    except ValueError: starttime = float(0.0)
+    try: vsize = int(data[22].strip())
+    except ValueError: vsize = int(0)
+    try: rss = int(data[23].strip())
+    except ValueError: rss = int(0)
+
+    proc = {
+        "ts":ts,                # Timestamp
+        "cmdline":cmdline,
+        "pid":pid,              #  1 The process ID
+        "state":" ",            #  3 Process state (see man 5 proc)
+        "ppid":ppid,            #  4 The PID of the parent of this process
+        "utime":utime,          # 14 Amount of time scheduled in user mode
+        "stime":stime,          # 15 Amount of time scheduled in kernel mode
+        "cutime":cutime,        # 16 Amount of time waited-for children scheduled in user mode 
+        "cstime":cstime,        # 17 Amount of time waited-for children scheduled in kernel mode 
+        "starttime":starttime,  # 22 The time the process started after system boot 
+        "vsize":vsize,          # 23 Virtual memory size in bytes
+        "rss":rss,              # 24 Resident Set Size: number of pages the process has in real memory
+        "p_utime":float(0.0),   # Percentage of time scheduled in user mode                      
+        "p_stime":float(0.0),   # Percentage of time scheduled in kernel mode                    
+        "p_cutime":float(0.0),  # Percentage of time waited-for children scheduled in user mode  
+        "p_cstime":float(0.0),  # Percentage of time waited-for children scheduled in kernel mode
+        "p_vsize":float(0.0),   # Percentage of virtual memory
+        "p_rss":float(0.0)      # Percentage of the number of pages in real memory
+    }
+    #print("procStat()", cpuId, cpu)
+    return pid, proc
+
+
+def proc_stat():
+    '''
+    Collect the metrics from /proc/[pid]/stat
+    '''
+    global ts, prev_ts
+    global poll_interval
+    global procset, proc 
+    global CPU_LIMIT, cpu_usage
+
+    # Read all the process IDs in the /prod folder
+    pid_list = [pid for pid in os.listdir('/proc') if pid.isdigit()]
+    
+    for pid in pid_list:
+        try:
+            cmdline = open(os.path.join('/proc', pid, 'cmdline'), 'rb').read()
+            
+            # TODO: REMOVE after demo
+            # if "primes-cgi.py" in cmdline or "httpd" in cmdline:
+            if "primes-cgi.py" in cmdline:
+                # print("cmdline", str(cmdline))
+                
+                stat = open(os.path.join('/proc', pid, 'stat'), 'rb').read()
+                # print("stat", str(stat))
+                
+                id, procStat = procstat(cmdline, stat)
+                procsetAdd(id, procStat)
+                
+                if cpu_usage >= CPU_LIMIT: theshold_checker(pid)
+                
+        except IOError:
+            continue
+    
+    '''
+    procs = []
+    stat = {}
+    
+    with open('/proc/stat') as f:
+        for line in f:
+            myLine = line.split(' ')
+            if "cpu" in myLine[0].strip():
+                cpuId, cpuStat = cpustat(myLine)
+                cpusetAdd(cpuId, cpuStat)
+            elif myLine[0].strip() in labels: stat[myLine[0].strip()] = myLine[1].strip()
+    stat["uptime"] = time.time() - float(stat["btime"])
+    '''
+    ''' Store cpus stat in the time series set '''
+    # for cpuId in cpus: cpuset = {ts:cpuId}
+    
+    # return stat
+
+
 def main():
     '''
     '''
     try:
         global ts, prev_ts
         global poll_interval
-        global cpuIds, cpuset, cpu
+        global cpuIds, cpuset, cpu, cpu_usage
 
         print "Start Time : %s" % time.ctime()
         
@@ -474,6 +770,7 @@ def main():
 
             for cpuDict in cpuset:
                 for cpuKey, cpuVal in cpuDict.iteritems():
+                    if cpuKey == "cpu": cpu_usage = (cpuVal[0]["p_nice"]*100)
                     print("{}\tuser: {} [{}]  nice: {} [{}]  system: {} [{}]  idle: {} [{}]  wait: {} [{}]".format(
                         cpuKey, 
                         "{0:.2f}".format((cpuVal[0]["p_user"]*100)), "{0:.2f}".format(cpuVal[1]["p_user"]*100),
@@ -483,6 +780,9 @@ def main():
                         "{0:.2f}".format((cpuVal[0]["p_iowait"]*100)), "{0:.2f}".format(cpuVal[1]["p_iowait"]*100)
                         )
                 )
+            
+            proc_stat()
+            
             
             time.sleep(poll_interval)
 
