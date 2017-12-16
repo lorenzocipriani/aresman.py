@@ -14,6 +14,7 @@ import os
 import time
 import signal
 import sys
+from _cffi_backend import string
 
 CUR_UP_1LINE = '\x1b[1A'
 ERASE_1LINE = '\x1b[2K'
@@ -499,7 +500,8 @@ def stat():
     
     with open('/proc/stat') as f:
         for line in f:
-            myLine = line.split(' ')
+            cleanLine = line.replace("  ", " ")
+            myLine = cleanLine.split(' ')
             if "cpu" in myLine[0].strip():
                 cpuId, cpuStat = cpustat(myLine)
                 cpusetAdd(cpuId, cpuStat)
@@ -770,7 +772,7 @@ def main():
 
             for cpuDict in cpuset:
                 for cpuKey, cpuVal in cpuDict.iteritems():
-                    if cpuKey == "cpu": cpu_usage = (cpuVal[0]["p_nice"]*100)
+                    if cpuKey == "cpu": cpu_usage = (cpuVal[0]["p_user"]*100)
                     print("{}\tuser: {} [{}]  nice: {} [{}]  system: {} [{}]  idle: {} [{}]  wait: {} [{}]".format(
                         cpuKey, 
                         "{0:.2f}".format((cpuVal[0]["p_user"]*100)), "{0:.2f}".format(cpuVal[1]["p_user"]*100),
