@@ -101,3 +101,9 @@ ENV/
 .mypy_cache/
 /.project
 /.pydevproject
+
+# LaTex Documentation builders
+doc/*.aux
+doc/*.log
+doc/*.synctex.gz
+
